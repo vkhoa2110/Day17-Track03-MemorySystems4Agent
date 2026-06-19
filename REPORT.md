@@ -1,15 +1,15 @@
-# Memory Systems Lab Report
+# Báo Cáo Lab Memory Systems
 
-## 1. Muc tieu
+## 1. Mục tiêu
 
-Bai lab so sanh hai cach thiet ke memory cho AI agent:
+Bài lab so sánh hai cách thiết kế memory cho AI agent:
 
-- `Baseline Agent`: chi giu short-term memory trong tung thread.
-- `Advanced Agent`: ket hop short-term memory, persistent memory bang `User.md`, va compact memory cho hoi thoai dai.
+- `Baseline Agent`: chỉ giữ short-term memory trong từng thread.
+- `Advanced Agent`: kết hợp short-term memory, persistent memory bằng `User.md`, và compact memory cho hội thoại dài.
 
-Muc tieu chinh khong phai la lam agent "nho tat ca", ma la do trade-off giua recall, token cost, memory growth va do phuc tap cua he thong.
+Mục tiêu chính không phải là làm agent "nhớ tất cả", mà là đo trade-off giữa recall, token cost, memory growth và độ phức tạp của hệ thống.
 
-## 2. Ket qua benchmark
+## 2. Kết quả benchmark
 
 ### Standard Benchmark
 
@@ -29,57 +29,57 @@ Input: `data/advanced_long_context.json`
 | Baseline | 531 | 23810 | 0.000 | 0.200 | 0 | 0 |
 | Advanced | 1205 | 20161 | 1.000 | 1.000 | 250 | 24 |
 
-## 3. Vi sao Advanced recall tot hon Baseline
+## 3. Vì sao Advanced recall tốt hơn Baseline
 
-Baseline chi luu lich su theo `thread_id`, nen khi benchmark hoi recall trong thread moi, agent khong con ngu canh cu. Vi vay Baseline gan nhu khong tra loi duoc cac fact nhu ten, nghe nghiep hien tai, noi o, do uong yeu thich, mon an yeu thich hay style tra loi.
+Baseline chỉ lưu lịch sử theo `thread_id`, nên khi benchmark hỏi recall trong thread mới, agent không còn ngữ cảnh cũ. Vì vậy Baseline gần như không trả lời được các fact như tên, nghề nghiệp hiện tại, nơi ở, đồ uống yêu thích, món ăn yêu thích hay style trả lời.
 
-Advanced ghi cac fact on dinh vao `User.md`. Khi sang thread moi, agent van doc lai profile nay, nen co the recall thong tin da hoc tu nhieu session truoc. Lop extraction cung xu ly correction co ban, vi du:
+Advanced ghi các fact ổn định vào `User.md`. Khi sang thread mới, agent vẫn đọc lại profile này, nên có thể recall thông tin đã học từ nhiều session trước. Lớp extraction cũng xử lý correction cơ bản, ví dụ:
 
-- nghe cu `backend engineer` duoc thay bang `MLOps engineer`
-- noi o cu `Da Nang` hoac `Hue` duoc cap nhat theo thong tin moi hon
-- cau dua ve `product manager` khong bi ghi de thanh nghe hien tai
+- nghề cũ `backend engineer` được thay bằng `MLOps engineer`
+- nơi ở cũ được cập nhật theo thông tin mới hơn
+- câu đùa về `product manager` không bị ghi đè thành nghề hiện tại
 
-Do do Standard Benchmark cho thay recall cua Advanced dat `0.896`, cao hon ro ret so voi Baseline `0.024`.
+Do đó Standard Benchmark cho thấy recall của Advanced đạt `0.896`, cao hơn rõ rệt so với Baseline `0.024`.
 
-## 4. Vi sao Advanced co the ton hon o hoi thoai ngan
+## 4. Vì sao Advanced có thể tốn hơn ở hội thoại ngắn
 
-Trong Standard Benchmark, Advanced xu ly nhieu prompt tokens hon Baseline: `24695` so voi `15692`. Ly do la Advanced khong chi mang recent messages, ma con nap them:
+Trong Standard Benchmark, Advanced xử lý nhiều prompt tokens hơn Baseline: `24695` so với `15692`. Lý do là Advanced không chỉ mang recent messages, mà còn nạp thêm:
 
-- noi dung `User.md`
-- facts da extract
-- compact summary neu co
-- logic cap nhat memory sau moi turn
+- nội dung `User.md`
+- facts đã extract
+- compact summary nếu có
+- logic cập nhật memory sau mỗi turn
 
-Voi hoi thoai ngan hoac vua, chi phi nap profile co the lon hon loi ich compact. Baseline don gian hon nen re hon ve prompt load trong nhung thread chua du dai.
+Với hội thoại ngắn hoặc vừa, chi phí nạp profile có thể lớn hơn lợi ích compact. Baseline đơn giản hơn nên rẻ hơn về prompt load trong những thread chưa đủ dài.
 
-## 5. Vi sao compact co loi o hoi thoai dai
+## 5. Vì sao compact có lợi ở hội thoại dài
 
-Trong stress benchmark, Baseline tiep tuc keo theo lich su thread dai, nen `prompt tokens processed` tang len `23810`. Advanced kich hoat compact memory `24` lan, giu lai cac message gan nhat va nen noi dung cu thanh summary. Nho vay prompt load giam xuong `20161` trong khi recall van dat `1.000`.
+Trong stress benchmark, Baseline tiếp tục kéo theo lịch sử thread dài, nên `prompt tokens processed` tăng lên `23810`. Advanced kích hoạt compact memory `24` lần, giữ lại các message gần nhất và nén nội dung cũ thành summary. Nhờ vậy prompt load giảm xuống `20161` trong khi recall vẫn đạt `1.000`.
 
-Ket qua nay cho thay compact memory chu yeu toi uu `prompt tokens processed`, khong nhat thiet lam giam `agent tokens only`. Advanced van sinh nhieu token hon Baseline vi no tra loi day du hon va co them noi dung recall chinh xac.
+Kết quả này cho thấy compact memory chủ yếu tối ưu `prompt tokens processed`, không nhất thiết làm giảm `agent tokens only`. Advanced vẫn sinh nhiều token hơn Baseline vì nó trả lời đầy đủ hơn và có thêm nội dung recall chính xác.
 
-## 6. Memory growth va rui ro
+## 6. Memory growth và rủi ro
 
-Advanced tao file `User.md`, nen memory co tang truong theo thoi gian. Trong benchmark:
+Advanced tạo file `User.md`, nên memory có tăng trưởng theo thời gian. Trong benchmark:
 
 - Standard Benchmark: memory growth `387` bytes
 - Stress Benchmark: memory growth `250` bytes
 
-Dung luong nay nho vi implementation chi luu fact on dinh, khong ghi nguyen van tat ca message. Tuy nhien trong he thong production, rui ro van gom:
+Dung lượng này nhỏ vì implementation chỉ lưu fact ổn định, không ghi nguyên văn tất cả message. Tuy nhiên trong hệ thống production, rủi ro vẫn gồm:
 
-- luu sai fact neu extractor qua rong
-- giu thong tin cu sau khi nguoi dung da correction
-- profile phinh to neu luu qua nhieu preference tam thoi
-- nham lan giua cau hoi, cau dua, thong tin gay nhieu va fact that
+- lưu sai fact nếu extractor quá rộng
+- giữ thông tin cũ sau khi người dùng đã correction
+- profile phình to nếu lưu quá nhiều preference tạm thời
+- nhầm lẫn giữa câu hỏi, câu đùa, thông tin gây nhiễu và fact thật
 
-Vi vay agent can guardrail nhu confidence threshold, conflict handling, va co che memory decay neu trien khai that.
+Vì vậy agent cần guardrail như confidence threshold, conflict handling, và cơ chế memory decay nếu triển khai thật.
 
-## 7. Ket luan
+## 7. Kết luận
 
-Ket qua benchmark the hien dung logic cua lab:
+Kết quả benchmark thể hiện đúng logic của lab:
 
-1. Baseline la moc so sanh don gian, chi nho trong thread.
-2. Advanced tang recall nho persistent memory bang `User.md`.
-3. O hoi thoai ngan, Advanced co the ton prompt tokens hon vi phai nap profile.
-4. O hoi thoai dai, compact memory giup Advanced giam prompt load va van giu du fact quan trong.
-5. Memory system manh hon nhung cung can guardrail de tranh luu sai, luu thua va phinh file theo thoi gian.
+1. Baseline là mốc so sánh đơn giản, chỉ nhớ trong thread.
+2. Advanced tăng recall nhờ persistent memory bằng `User.md`.
+3. Ở hội thoại ngắn, Advanced có thể tốn prompt tokens hơn vì phải nạp profile.
+4. Ở hội thoại dài, compact memory giúp Advanced giảm prompt load và vẫn giữ đủ fact quan trọng.
+5. Memory system mạnh hơn nhưng cũng cần guardrail để tránh lưu sai, lưu thừa và phình file theo thời gian.
