@@ -1,19 +1,17 @@
-# Student Scaffold
+# Completed Lab Implementation
 
-This `src/` folder is the student version of the lab.
+This `src/` folder contains a runnable offline implementation of the memory-system lab.
 
-- It keeps the same high-level structure
-- The Python files are intentionally incomplete and contain pseudocode / TODOs
-- The benchmark structure should include: standard benchmark + long-context stress benchmark
-- The runtime should support these providers: `openai`, `custom`, `gemini`, `anthropic`, `ollama`, `openrouter`
+- `BaselineAgent` keeps only per-thread short-term memory.
+- `AdvancedAgent` combines per-thread memory, persistent `User.md`, and compact memory.
+- The benchmark includes the standard suite and long-context stress suite.
+- Provider config supports: `openai`, `custom`, `gemini`, `anthropic`, `ollama`, `openrouter`.
 
-Suggested flow:
+Useful commands:
 
-1. Start with `config.py`
-2. Implement `memory_store.py`
-3. Finish `agent_baseline.py`
-4. Finish `agent_advanced.py`
-5. Implement `benchmark.py`
-6. Make `test_agents.py` pass
+```bash
+python -m pytest -q src
+python src/benchmark.py
+```
 
 Datasets are available at the repo root in `data/`.

@@ -1,20 +1,15 @@
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from pathlib import Path
 
-from model_provider import ProviderConfig
+from model_provider import ProviderConfig, normalize_provider
 
 
 @dataclass
 class LabConfig:
-    """Student TODO: define the shared configuration for the lab.
-
-    Hints:
-    - Keep paths for the repo root, dataset directory, and state directory.
-    - Add compact-memory settings such as threshold and number of messages to keep.
-    - Add provider settings for `openai`, `custom`, `gemini`, `anthropic`, `ollama`, and `openrouter`.
-    """
+    """Shared configuration for paths, memory policy, and model providers."""
 
     base_dir: Path
     data_dir: Path
@@ -26,27 +21,79 @@ class LabConfig:
 
 
 def load_config(base_dir: Path | None = None) -> LabConfig:
-    """Student TODO: load environment variables and return a LabConfig.
-
-    Pseudocode:
-    1. Resolve the repo root or default to the current file parent.
-    2. Optionally load values from `.env`.
-    3. Create `state/` if it does not exist.
-    4. Return a populated LabConfig instance.
-    """
+    """Load environment variables and return a complete lab config."""
 
     root = (base_dir or Path(__file__).resolve().parent.parent).resolve()
 
-    # TODO: read env vars for one of the supported providers.
-    # Example knobs:
-    # - LLM_PROVIDER / LLM_MODEL
-    # - OPENAI_API_KEY
-    # - GEMINI_API_KEY
-    # - ANTHROPIC_API_KEY
-    # - OLLAMA_BASE_URL
-    # - OPENROUTER_API_KEY
-    # - CUSTOM_BASE_URL / CUSTOM_API_KEY
-    # TODO: create `root / "state"`.
-    # TODO: choose sensible defaults for compact memory.
+    try:
+        from dotenv import load_dotenv
+    except ImportError:
+        load_dotenv = None
 
-    raise NotImplementedError("Students should implement load_config().")
+    if load_dotenv:
+        load_dotenv(root / ".env")
+
+    data_dir = Path(os.getenv("LAB_DATA_DIR", root / "data")).resolve()
+    state_dir = Path(os.getenv("LAB_STATE_DIR", root / "state")).resolve()
+    state_dir.mkdir(parents=True, exist_ok=True)
+
+    provider = normalize_provider(os.getenv("LLM_PROVIDER", "openai"))
+    judge_provider = normalize_provider(os.getenv("JUDGE_LLM_PROVIDER", provider))
+
+    defaults = {
+        "openai": "gpt-4o-mini",
+        "custom": "gpt-4o-mini",
+        "gemini": "gemini-1.5-flash",
+        "anthropic": "claude-3-5-haiku-latest",
+        "ollama": "llama3.1",
+        "openrouter": "openai/gpt-4o-mini",
+    }
+
+    def api_key_for(selected: str, prefix: str = "") -> str | None:
+        env_prefix = f"{prefix}_" if prefix else ""
+        if selected == "openai":
+            return os.getenv(f"{env_prefix}OPENAI_API_KEY")
+        if selected == "custom":
+            return os.getenv(f"{env_prefix}CUSTOM_API_KEY") or os.getenv(f"{env_prefix}OPENAI_API_KEY")
+        if selected == "gemini":
+            return os.getenv(f"{env_prefix}GEMINI_API_KEY") or os.getenv(f"{env_prefix}GOOGLE_API_KEY")
+        if selected == "anthropic":
+            return os.getenv(f"{env_prefix}ANTHROPIC_API_KEY")
+        if selected == "openrouter":
+            return os.getenv(f"{env_prefix}OPENROUTER_API_KEY")
+        return None
+
+    def base_url_for(selected: str, prefix: str = "") -> str | None:
+        env_prefix = f"{prefix}_" if prefix else ""
+        if selected == "custom":
+            return os.getenv(f"{env_prefix}CUSTOM_BASE_URL")
+        if selected == "ollama":
+            return os.getenv(f"{env_prefix}OLLAMA_BASE_URL", "http://localhost:11434")
+        if selected == "openrouter":
+            return os.getenv(f"{env_prefix}OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
+        return None
+
+    model = ProviderConfig(
+        provider=provider,
+        model_name=os.getenv("LLM_MODEL", defaults[provider]),
+        temperature=float(os.getenv("LLM_TEMPERATURE", "0.2")),
+        api_key=api_key_for(provider),
+        base_url=base_url_for(provider),
+    )
+    judge_model = ProviderConfig(
+        provider=judge_provider,
+        model_name=os.getenv("JUDGE_LLM_MODEL", os.getenv("LLM_MODEL", defaults[judge_provider])),
+        temperature=float(os.getenv("JUDGE_LLM_TEMPERATURE", "0")),
+        api_key=api_key_for(judge_provider, "JUDGE") or api_key_for(judge_provider),
+        base_url=base_url_for(judge_provider, "JUDGE") or base_url_for(judge_provider),
+    )
+
+    return LabConfig(
+        base_dir=root,
+        data_dir=data_dir,
+        state_dir=state_dir,
+        compact_threshold_tokens=int(os.getenv("COMPACT_THRESHOLD_TOKENS", "900")),
+        compact_keep_messages=int(os.getenv("COMPACT_KEEP_MESSAGES", "8")),
+        model=model,
+        judge_model=judge_model,
+    )
